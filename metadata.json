@@ -1,0 +1,7 @@
+{
+  "name": "VibeReceipt OCR",
+  "description": "A minimalist black & white app to extract all text from a receipt image using OCR and copy it to the clipboard.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

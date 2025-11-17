@@ -1,16 +1,43 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { ReceiptScan } from './types';
 import OcrEngine from './components/OcrEngine';
 import HistoryView from './components/HistoryView';
 import { HistoryIcon } from './components/icons/HistoryIcon';
 import { ArrowLeftIcon } from './components/icons/ArrowLeftIcon';
+import ApiKeySelector from './components/ApiKeySelector';
 
 type View = 'ocr' | 'history';
+
+// Fix: Removed conflicting global declaration for window.aistudio.
+// The type definitions are expected to be provided by the environment, and re-declaring it was causing a conflict.
 
 const App: React.FC = () => {
     const [view, setView] = useState<View>('ocr');
     const [history, setHistory] = useLocalStorage<ReceiptScan[]>('receipt-history', []);
+    const [isKeyReady, setIsKeyReady] = useState<boolean>(false);
+
+    useEffect(() => {
+        const checkKey = async () => {
+            if (window.aistudio) {
+                const hasKey = await window.aistudio.hasSelectedApiKey();
+                setIsKeyReady(hasKey);
+            }
+        };
+        checkKey();
+    }, []);
+
+    const handleKeySelection = useCallback(async () => {
+        if (window.aistudio) {
+            await window.aistudio.openSelectKey();
+            // Assume success to handle potential race condition
+            setIsKeyReady(true);
+        }
+    }, []);
+    
+    const handleKeyInvalid = useCallback(() => {
+        setIsKeyReady(false);
+    }, []);
 
     const addScanToHistory = useCallback((scan: ReceiptScan) => {
         setHistory(prevHistory => [scan, ...prevHistory]);
@@ -36,11 +63,15 @@ const App: React.FC = () => {
         </header>
     );
 
+    if (!isKeyReady) {
+        return <ApiKeySelector onSelectKey={handleKeySelection} />;
+    }
+
     return (
         <div className="max-w-md mx-auto bg-white shadow-2xl h-screen md:h-[95vh] md:max-h-[800px] md:my-4 md:rounded-lg overflow-hidden flex flex-col font-sans">
             <Header />
             <main className="flex-1 overflow-y-auto bg-gray-50">
-                {view === 'ocr' && <OcrEngine onScanComplete={addScanToHistory} />}
+                {view === 'ocr' && <OcrEngine onScanComplete={addScanToHistory} onApiKeyInvalid={handleKeyInvalid} />}
                 {view === 'history' && <HistoryView scans={history} onBack={() => setView('ocr')} />}
             </main>
         </div>

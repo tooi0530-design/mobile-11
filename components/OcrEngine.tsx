@@ -8,9 +8,10 @@ import { SpinnerIcon } from './icons/SpinnerIcon';
 
 interface OcrEngineProps {
     onScanComplete: (scan: ReceiptScan) => void;
+    onApiKeyInvalid: () => void;
 }
 
-const OcrEngine: React.FC<OcrEngineProps> = ({ onScanComplete }) => {
+const OcrEngine: React.FC<OcrEngineProps> = ({ onScanComplete, onApiKeyInvalid }) => {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [extractedText, setExtractedText] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -58,11 +59,20 @@ const OcrEngine: React.FC<OcrEngineProps> = ({ onScanComplete }) => {
             };
             onScanComplete(newScan);
         } catch (err) {
-            setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+            const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
+            if (errorMessage.includes("Requested entity was not found")) {
+                setError("API 키가 잘못되었습니다. 새 키를 선택해 주세요.");
+                // Delay to allow user to see the message before UI changes
+                setTimeout(() => {
+                    onApiKeyInvalid();
+                }, 2000);
+            } else {
+                setError(errorMessage);
+            }
         } finally {
             setIsLoading(false);
         }
-    }, [onScanComplete]);
+    }, [onScanComplete, onApiKeyInvalid]);
 
     const handleCopyText = () => {
         if (extractedText) {
